@@ -159,7 +159,7 @@ ul.words li.hide{display:none}
 .t-unk{background:#eef1f4;color:#57606a}
 
 @media(max-width:1100px){ul.words{column-count:2} #gref .grid3{grid-template-columns:1fr 1fr} .sa-examples{grid-template-columns:1fr}}
-@media(max-width:760px){ul.words{column-count:1} #gref .grid2,#gref .grid3{grid-template-columns:1fr} section.cat{padding:20px 16px} #gref section{padding:22px 18px}}
+@media(max-width:760px){ul.words{column-count:1} #gref .grid2,#gref .grid3{grid-template-columns:1fr} section.cat{padding:20px 16px} #gref section{padding:22px 18px} .sidebar{position:fixed;top:0;left:0;z-index:600;height:100%;box-shadow:2px 0 16px rgba(0,0,0,.18)} .sidebar.collapsed{transform:translateX(-100%);margin-left:0} .main{width:100%} .sb-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:550} .sb-backdrop.on{display:block}}
 @media print{
   .app-head,.toolbar{display:none!important}
   .wrap{padding:0;max-width:none}
@@ -170,18 +170,31 @@ ul.words li.hide{display:none}
 </style>
 </head>
 <body>
-<header class="app-head">
-  <div class="bar">
-    <div class="brand">星火英语 <span>Spark English</span></div>
-    <nav class="tabs">
-      <button class="tab on" data-target="vocab">📒 词汇记忆</button>
-      <button class="tab" data-target="analyzer">🔍 语法解读</button>
-      <button class="tab" data-target="grammar">📖 语法参考</button>
-    </nav>
-  </div>
-</header>
-
-<div class="wrap">
+<div class="layout">
+  <aside class="sidebar" id="sidebar">
+    <div class="sb-group" id="sbGroupVocab">
+      <div class="sb-head" id="sbVocabHead">📒 词汇记忆 <span class="sb-caret">▾</span></div>
+      <div class="sb-list" id="sbVocab"></div>
+    </div>
+    <div class="sb-group" id="sbGroupGrammar">
+      <div class="sb-head" id="sbGrammarHead">📖 语法参考 <span class="sb-caret">▾</span></div>
+      <div class="sb-list" id="sbGrammar"></div>
+    </div>
+  </aside>
+  <div class="sb-backdrop" id="sbBackdrop"></div>
+  <div class="main">
+    <header class="app-head">
+      <div class="bar">
+        <button class="sidebar-toggle" id="sbToggle" title="目录">☰</button>
+        <div class="brand">星火英语 <span>Spark English</span></div>
+        <nav class="tabs">
+          <button class="tab on" data-target="vocab">📒 词汇记忆</button>
+          <button class="tab" data-target="analyzer">🔍 语法解读</button>
+          <button class="tab" data-target="grammar">📖 语法参考</button>
+        </nav>
+      </div>
+    </header>
+    <div class="wrap">
 
   <!-- ================= VOCAB MODULE ================= -->
   <div class="module on" id="vocab">
@@ -7175,16 +7188,17 @@ ul.words li.hide{display:none}
 (function(){
   var tabs=document.querySelectorAll('.tab');
   var mods=document.querySelectorAll('.module');
+  function show(target){
+    tabs.forEach(function(x){x.classList.remove('on');});
+    mods.forEach(function(m){m.classList.remove('on');});
+    var t=document.querySelector('.tab[data-target="'+target+'"]'); if(t)t.classList.add('on');
+    var el=document.getElementById(target); if(el)el.classList.add('on');
+    window.scrollTo({top:0});
+  }
   tabs.forEach(function(t){
-    t.addEventListener('click',function(){
-      tabs.forEach(function(x){x.classList.remove('on');});
-      mods.forEach(function(m){m.classList.remove('on');});
-      t.classList.add('on');
-      var el=document.getElementById(t.getAttribute('data-target'));
-      if(el)el.classList.add('on');
-      window.scrollTo({top:0});
-    });
+    t.addEventListener('click',function(){ show(t.getAttribute('data-target')); });
   });
+  window.SparkNav=window.SparkNav||{}; window.SparkNav.show=show;
 })();
 
 /* ============ Vocab memorization ============ */
@@ -7204,6 +7218,40 @@ ul.words li.hide{display:none}
       else{known[w]=1;this.classList.add('known');}
       save();updateStats();
     });
+  });
+  function escapeHTML(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+  function cap(s){return s.charAt(0).toUpperCase()+s.slice(1);}
+  function makeExample(word,pos,zh){
+    var en,cn; pos=(pos||'').toLowerCase();
+    var zhDe=(zh||'').replace(/的$/,'');
+    var zhDi=(zh||'').replace(/地$/,'');
+    if(pos.indexOf('n.')===0){ en='The '+word+' is very important.'; cn='这个'+zh+'非常重要。'; }
+    else if(pos.indexOf('v.')===0||pos==='vi.'||pos==='vt.'){ en='We should '+word+' it every day.'; cn='我们应该每天'+(zh||'做')+'它。'; }
+    else if(pos.indexOf('adj.')===0||pos==='a.'){ en='This is '+(/[aeiouAEIOU]/.test(word)?'an ':'a ')+word+' example.'; cn='这是一个'+zhDe+'的例子。'; }
+    else if(pos.indexOf('adv.')===0){ en='He did it '+word+'.'; cn='他'+(zhDi||'那样')+'地完成了这件事。'; }
+    else if(pos.indexOf('prep.')===0){ en='The book is '+word+' the desk.'; cn='书'+(zh||'在')+'书桌。'; }
+    else if(pos.indexOf('conj.')===0){ en='We can go '+word+' we are free.'; cn='我们可以去，'+(zh||'并且')+'我们有空。'; }
+    else if(pos.indexOf('pron.')===0){ en='This is '+word+'.'; cn='这是'+(zh||'这个')+'。'; }
+    else if(pos==='phr.'){ en='We often use "'+word+'".'; cn='我们经常用到「'+word+'」。'; }
+    else { en='I know the word "'+word+'".'; cn='我认识「'+word+'」这个词。'; }
+    return {en:cap(en),cn:cn};
+  }
+  items.forEach(function(li){
+    var b=li.querySelector('b'); if(!b)return;
+    var w=b.textContent.trim();
+    var i=li.querySelector('i'); var pos=i?i.textContent.trim():'';
+    var nodes=li.childNodes, zh='';
+    for(var ni=0;ni<nodes.length;ni++){ if(nodes[ni].nodeType===3){ zh+=nodes[ni].textContent; } }
+    zh=zh.trim();
+    var ex=makeExample(w,pos,zh);
+    li.setAttribute('data-zh',zh);
+    li.setAttribute('data-en',ex.en);
+    li.setAttribute('data-cn',ex.cn);
+    var btn=document.createElement('button'); btn.className='egbtn'; btn.type='button'; btn.textContent='例句';
+    var box=document.createElement('div'); box.className='egbox';
+    li.appendChild(btn); li.appendChild(box);
+    btn.addEventListener('click',function(e){ e.stopPropagation(); box.classList.toggle('on'); if(box.classList.contains('on')&&!box.dataset.filled){ box.innerHTML='<div class="en">'+escapeHTML(ex.en)+'</div><div class="cn">'+escapeHTML(ex.cn)+'</div>'; box.dataset.filled='1'; } });
+    box.addEventListener('click',function(e){ e.stopPropagation(); });
   });
   var total=items.length;
   var statTotal=document.getElementById('statTotal');
@@ -7271,6 +7319,7 @@ ul.words li.hide{display:none}
       known={};save(); items.forEach(function(li){li.classList.remove('known');}); updateStats();applyFilters();
     }
   });
+  window.SparkNav=window.SparkNav||{}; window.SparkNav.setCat=setCat;
 })();
 
 /* ============ Grammar reference nav ============ */
@@ -7302,12 +7351,55 @@ ul.words li.hide{display:none}
     entries.forEach(function(e){ if(e.isIntersecting){ gchips.forEach(function(c){c.classList.remove('active');}); var c=map[e.target.id]; if(c)c.classList.add('active'); } });
   },{rootMargin:'-10% 0px -80% 0px'});
   secs.forEach(function(s){obs.observe(s);});
+  window.SparkNav=window.SparkNav||{}; window.SparkNav.setSec=setSec;
+})();
+
+/* ============ Sidebar TOC ============ */
+(function(){
+  var sidebar=document.getElementById('sidebar');
+  var sbBackdrop=document.getElementById('sbBackdrop');
+  var sbToggle=document.getElementById('sbToggle');
+  function openSb(){sidebar.classList.remove('collapsed'); if(sbBackdrop)sbBackdrop.classList.add('on');}
+  function closeSb(){sidebar.classList.add('collapsed'); if(sbBackdrop)sbBackdrop.classList.remove('on');}
+  if(sbToggle)sbToggle.addEventListener('click',function(){ if(sidebar.classList.contains('collapsed'))openSb(); else closeSb(); });
+  if(sbBackdrop)sbBackdrop.addEventListener('click',closeSb);
+  if(window.innerWidth<=760) closeSb();
+  var gV=document.getElementById('sbGroupVocab'); var gG=document.getElementById('sbGroupGrammar');
+  document.getElementById('sbVocabHead').addEventListener('click',function(){ gV.classList.toggle('collapsed'); });
+  document.getElementById('sbGrammarHead').addEventListener('click',function(){ gG.classList.toggle('collapsed'); });
+  var sbVocab=document.getElementById('sbVocab'); var sbGrammar=document.getElementById('sbGrammar');
+  var vsecs=Array.prototype.slice.call(document.querySelectorAll('#vocab section.cat'));
+  vsecs.forEach(function(s){
+    var a=document.createElement('a'); a.className='sb-link'; a.href='javascript:void(0)';
+    a.textContent=s.querySelector('h2').childNodes[0].textContent.trim();
+    a.setAttribute('data-cat',s.id);
+    a.addEventListener('click',function(){
+      if(window.SparkNav)window.SparkNav.show('vocab');
+      if(window.SparkNav&&window.SparkNav.setCat)window.SparkNav.setCat(s.id);
+      if(window.innerWidth<=760)closeSb();
+    });
+    sbVocab.appendChild(a);
+  });
+  var gref=document.getElementById('gref');
+  var gsecs=Array.prototype.slice.call(gref.querySelectorAll('section[id]'));
+  gsecs.forEach(function(s){
+    var a=document.createElement('a'); a.className='sb-link'; a.href='javascript:void(0)';
+    var h=s.querySelector('h2'); a.textContent=h?h.textContent.replace(/\s+/g,' ').trim():s.id;
+    a.setAttribute('data-sec',s.id);
+    a.addEventListener('click',function(){
+      if(window.SparkNav)window.SparkNav.show('grammar');
+      if(window.SparkNav&&window.SparkNav.setSec)window.SparkNav.setSec(s.id);
+      var t=document.getElementById(s.id); if(t)t.scrollIntoView({behavior:'smooth',block:'start'});
+      if(window.innerWidth<=760)closeSb();
+    });
+    sbGrammar.appendChild(a);
+  });
 })();
 
 /* ============ Sentence grammar analyzer ============ */
 (function(){
   // 1) 用内置词库（来自四级词汇表）构建 单词->词性 的高精度映射
-  var WORD={};
+  var WORD={}; var ZH={};
   var vlis=document.querySelectorAll('#vocab ul.words li');
   for(var vi=0;vi<vlis.length;vi++){
     var vb=vlis[vi].querySelector('b'); if(!vb)continue;
@@ -7315,6 +7407,9 @@ ul.words li.hide{display:none}
     var ww=vb.textContent.trim().toLowerCase();
     var pp=vi2?vi2.textContent.trim().toLowerCase():'';
     if(ww)WORD[ww]=pp;
+    var zhnodes=vlis[vi].childNodes, zh='';
+    for(var zni=0;zni<zhnodes.length;zni++){ if(zhnodes[zni].nodeType===3){ zh+=zhnodes[zni].textContent; } }
+    if(ww)ZH[ww]=zh.trim();
   }
   function mapFirst(p){
     if(p==='v.'||p==='vi.'||p==='vt.')return '动词';
@@ -7397,6 +7492,18 @@ ul.words li.hide{display:none}
     if(w.slice(-2)==='ed')return '过去式/过去分词';
     if(w.slice(-1)==='s'&&w.slice(-2)!=='ss')return '名/动';
     return '名/动';
+  }
+  var CN={the:'这/那',a:'一个',an:'一个',to:'到/去',of:'的',and:'和',or:'或',in:'在…里',on:'在…上',at:'在',for:'为了',with:'和/用',by:'被/由',from:'从',is:'是',are:'是',was:'是',were:'是',be:'是',been:'是',have:'有',has:'有',had:'有',do:'做',does:'做',did:'做',will:'将',would:'会',can:'能',could:'能',should:'应该',must:'必须',may:'可能',might:'可能',not:'不',"n't":'不',i:'我',you:'你',he:'他',she:'她',it:'它',we:'我们',they:'他们',this:'这',that:'那',my:'我的',your:'你的',his:'他的',her:'她的',our:'我们的',their:'他们的',me:'我',him:'他',us:'我们',them:'他们',what:'什么',who:'谁',when:'何时',where:'哪里',why:'为什么',how:'怎么'};
+  function translate(text){
+    var out=[]; var prevEng=false;
+    text.split(' ').forEach(function(w){
+      var clean=w.replace(/^[^A-Za-z]+|[^A-Za-z]+$/g,'').toLowerCase();
+      if(!clean){ out.push(w); prevEng=false; return; }
+      var zh=ZH[clean]; if(!zh) zh=CN[clean];
+      if(zh){ out.push(zh); prevEng=false; }
+      else { if(out.length&&prevEng)out.push(' '); out.push(clean); prevEng=true; }
+    });
+    return out.join('');
   }
   function posClass(p){
     if(p==='代词')return 't-pro';
@@ -7527,6 +7634,7 @@ ul.words li.hide{display:none}
       + clausePills
       + '<div class="sa-label">词性标注</div><div class="sa-tokens">'+r.toks.map(tokHTML).join('')+'</div>'
       + '<div class="sa-label" style="margin-top:12px">解读</div><div class="sa-note">'+explain(r)+'</div>'
+      + '<div class="sa-label" style="margin-top:12px">参考翻译（逐词）</div><div class="sa-trans">'+escapeHTML(translate(text))+'</div>'
       + '</div>';
   }
   function renderCurated(ex){
@@ -7540,6 +7648,7 @@ ul.words li.hide{display:none}
       + (typePill?'<div class="sa-row"><span class="sa-label">种类/时态</span>'+typePill+'</div>':'')
       + '<div class="sa-label">分解</div><div class="sa-tokens">'+toks+'</div>'
       + '<div class="sa-label" style="margin-top:12px">总结</div><div class="sa-note">'+escapeHTML(ex.summary)+'</div>'
+      + '<div class="sa-label" style="margin-top:12px">参考翻译</div><div class="sa-trans">'+escapeHTML(ex.cn||'')+'</div>'
       + '</div>';
   }
   var EXAMPLES=[
@@ -7553,7 +7662,7 @@ ul.words li.hide{display:none}
        {w:'window',pos:'名词',note:'宾语'},
        {w:'yesterday',pos:'副词',note:'时间状语'}
      ],
-     summary:'SVO 句型（主语+谓语+宾语），一般过去时，主动语态。broke 是 break 的过去式。'},
+     summary:'SVO 句型（主语+谓语+宾语），一般过去时，主动语态。broke 是 break 的过去式。',cn:'那个小男孩昨天打破了窗户。'},
     {ex:'She has been working here for two years.',
      items:[
        {w:'She',pos:'代词',note:'主语'},
@@ -7565,7 +7674,7 @@ ul.words li.hide{display:none}
        {w:'two',pos:'数词',note:'修饰 years'},
        {w:'years',pos:'名词',note:'宾语（时间段）'}
      ],
-     summary:'现在完成进行时（has been working），主动语态，强调动作从过去持续到现在。'},
+     summary:'现在完成进行时（has been working），主动语态，强调动作从过去持续到现在。',cn:'她在这里工作两年了。'},
     {ex:'The book was written by a famous author.',
      items:[
        {w:'The',pos:'冠词',note:'限定 book'},
@@ -7577,7 +7686,7 @@ ul.words li.hide{display:none}
        {w:'famous',pos:'形容词',note:'修饰 author'},
        {w:'author',pos:'名词',note:'动作执行者'}
      ],
-     summary:'一般过去时被动语态（was written），by 引出动作执行者。'},
+     summary:'一般过去时被动语态（was written），by 引出动作执行者。',cn:'这本书由一位著名作家所著。'},
     {ex:'If it rains tomorrow, we will stay at home.',
      items:[
        {w:'If',pos:'连词',note:'引导条件状语从句'},
@@ -7590,7 +7699,7 @@ ul.words li.hide{display:none}
        {w:'at',pos:'介词',note:'限定 home'},
        {w:'home',pos:'名词',note:'地点状语'}
      ],
-     summary:'含条件状语从句（If 引导）。主句用一般将来时（will stay），从句用一般现在时表将来（主将从现）。'},
+     summary:'含条件状语从句（If 引导）。主句用一般将来时（will stay），从句用一般现在时表将来（主将从现）。',cn:'如果明天下雨，我们就待在家里。'},
     {ex:'What a beautiful day it is!',
      items:[
        {w:'What',pos:'副词',note:'感叹词，引导感叹句'},
@@ -7600,7 +7709,7 @@ ul.words li.hide{display:none}
        {w:'it',pos:'代词',note:'主语'},
        {w:'is',pos:'助动词',note:'系动词'}
      ],
-     summary:'感叹句（What + a + 形容词 + 名词 + 主语 + 系动词！），表达强烈感叹。'},
+     summary:'感叹句（What + a + 形容词 + 名词 + 主语 + 系动词！），表达强烈感叹。',cn:'多美好的一天啊！'},
     {ex:'He asked me whether I liked the gift.',
      items:[
        {w:'He',pos:'代词',note:'主句主语'},
@@ -7612,7 +7721,7 @@ ul.words li.hide{display:none}
        {w:'the',pos:'冠词',note:'限定 gift'},
        {w:'gift',pos:'名词',note:'从句宾语'}
      ],
-     summary:'主谓宾（SVOO）嵌套宾语从句（whether 引导）。从句作 asked 的宾语。'}
+     summary:'主谓宾（SVOO）嵌套宾语从句（whether 引导）。从句作 asked 的宾语。',cn:'他问我是否喜欢这份礼物。'}
   ];
   var saInput=document.getElementById('saInput');
   var saResult=document.getElementById('saResult');
@@ -7631,5 +7740,7 @@ ul.words li.hide{display:none}
 })();
 
 </script>
+  </div>
+</div>
 </body>
 </html>
